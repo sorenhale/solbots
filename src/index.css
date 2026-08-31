@@ -51,9 +51,9 @@ button {
 
 .app {
   min-height: 100%;
-  min-width: 1280px;
+  min-width: 1440px;
   display: grid;
-  grid-template-rows: 58px 1fr 168px;
+  grid-template-rows: 64px 1fr 168px;
   grid-template-columns: 1fr 340px;
   grid-template-areas:
     "top top"
@@ -79,10 +79,23 @@ button {
   flex-shrink: 0;
 }
 
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sub {
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  line-height: 1;
+}
+
 .wordmark {
   font-family: var(--display);
   font-weight: 800;
-  font-size: 20px;
+  font-size: 18px;
   letter-spacing: 0.14em;
   line-height: 1;
 }
@@ -179,9 +192,90 @@ button {
 .tape {
   grid-area: tape;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   min-height: 0;
   border-right: 1px solid var(--line);
+}
+
+.desk-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 22px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(11, 11, 14, 0.85);
+}
+
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px 4px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: transparent;
+}
+
+.chip:hover {
+  border-color: var(--purple);
+  color: var(--text);
+}
+
+.chip .n {
+  color: var(--dim);
+  margin-left: 8px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip.on {
+  color: var(--text);
+  border-color: rgba(153, 69, 255, 0.6);
+  background: var(--purple-dim);
+  box-shadow: 0 0 0 1px rgba(153, 69, 255, 0.12);
+}
+
+.chip.on .n { color: var(--purple); }
+
+.match {
+  color: var(--dim);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.sort {
+  margin-left: auto;
+  display: flex;
+  border: 1px solid var(--line-2);
+  background: var(--ink);
+}
+
+.sort button {
+  padding: 4px 12px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--dim);
+}
+
+.sort button + button {
+  border-left: 1px solid var(--line-2);
+}
+
+.sort button:hover { color: var(--text); }
+
+.sort button.on {
+  color: var(--green);
+  background: var(--green-dim);
 }
 
 .focus {
@@ -228,6 +322,13 @@ button {
   color: var(--text);
   font-weight: 500;
   margin-left: 6px;
+}
+
+.consensus {
+  color: var(--purple);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  margin: -2px 0 10px;
 }
 
 .bot-grid {
@@ -286,7 +387,25 @@ button {
   background: var(--purple-dim);
   box-shadow: inset 2px 0 0 var(--purple);
 }
+.row.heat:not(.on) {
+  box-shadow: inset 2px 0 0 rgba(153, 69, 255, 0.45);
+}
 .row.fresh { animation: flash 1.2s ease-out; }
+
+.copied {
+  color: var(--purple);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+  margin-left: 8px;
+  animation: copied-in 0.15s ease-out;
+}
+
+@keyframes copied-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 @keyframes flash {
   from { background: rgba(20, 241, 149, 0.16); }

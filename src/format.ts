@@ -51,3 +51,13 @@ export function pct(n: number | null | undefined): string {
 export function sym(s: string): string {
   return (s || "?").toUpperCase();
 }
+
+export function isYoung(createdAt: number | null, now: number): boolean {
+  const age = ageMs(createdAt, now);
+  return age != null && age < 60 * 60_000;
+}
+
+export function isMover(changeH1: number): boolean {
+  return Math.abs(changeH1) >= 20;
+}
+

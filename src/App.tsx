@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadTape, TapeError } from "./api";
-import { botName, botRole, linesFor, statusFor, tickLines } from "./bots";
-import { ageLabel, clock, money, pct, usdPrice } from "./format";
+import { botName, botRole, botsOnPrint, linesFor, rowHasHeat, statusFor, tickLines } from "./bots";
+import { ageLabel, clock, isMover, isYoung, money, pct, usdPrice } from "./format";
 import type { BotId, BotLine, Pair, TapeState } from "./types";
 
 const POLL_MS = 30_000;
 const BOTS: BotId[] = ["nyx", "rook", "vesper", "mira"];
+
+type Filter = "all" | "young" | "movers";
+type Sort = "age" | "vol";
 
 const MESSAGES: Record<TapeState, string> = {
   live: "",
@@ -13,6 +16,13 @@ const MESSAGES: Record<TapeState, string> = {
   limited: "public tape asked us to slow down. waiting.",
   error: "could not read the public tape. will retry.",
 };
+
+function copySymbol(symbol: string): Promise<void> {
+  if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+    return Promise.reject();
+  }
+  return navigator.clipboard.writeText(symbol);
+}
 
 export function App() {
   const [pairs, setPairs] = useState<Pair[]>([]);
@@ -24,12 +34,20 @@ export function App() {
   const [now, setNow] = useState(() => Date.now());
   const [lastPoll, setLastPoll] = useState<number | null>(null);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<Filter>("young");
+  const [sort, setSort] = useState<Sort>("age");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const seenPoll = useRef(false);
   const focusRef = useRef<string | null>(null);
+  const copyTimer = useRef(0);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    return () => window.clearTimeout(copyTimer.current);
   }, []);
 
   useEffect(() => {
@@ -86,9 +104,40 @@ export function App() {
     };
   }, []);
 
+  const counts = useMemo(() => {
+    let young = 0;
+    let movers = 0;
+    for (const p of pairs) {
+      if (isYoung(p.createdAt, now)) young += 1;
+      if (isMover(p.change.h1)) movers += 1;
+    }
+    return { all: pairs.length, young, movers };
+  }, [pairs, now]);
+
+  const visible = useMemo(() => {
+    let list = pairs;
+    if (filter === "young") list = list.filter((p) => isYoung(p.createdAt, now));
+    else if (filter === "movers") list = list.filter((p) => isMover(p.change.h1));
+    const sorted = [...list];
+    if (sort === "age") {
+      sorted.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+    } else {
+      sorted.sort((a, b) => (b.vol.h1 || b.vol.h24) - (a.vol.h1 || a.vol.h24));
+    }
+    return sorted;
+  }, [pairs, filter, sort, now]);
+
+  useEffect(() => {
+    if (!visible.length) return;
+    if (!visible.some((p) => p.id === focusRef.current)) {
+      focusRef.current = visible[0].id;
+      setFocusId(visible[0].id);
+    }
+  }, [visible]);
+
   const focused = useMemo(
-    () => pairs.find((p) => p.id === focusId) ?? pairs[0] ?? null,
-    [pairs, focusId],
+    () => (visible.length ? (visible.find((p) => p.id === focusId) ?? visible[0]) : null),
+    [visible, focusId],
   );
 
   const focusLines = useMemo(
@@ -96,13 +145,42 @@ export function App() {
     [focused, now],
   );
 
+  const consensus = focused ? botsOnPrint(focused, now) : 0;
+
   const ticker = pairs.slice(0, 18);
+
+  function pickPair(p: Pair) {
+    focusRef.current = p.id;
+    setFocusId(p.id);
+    void copySymbol(p.symbol).then(
+      () => {
+        setCopiedId(p.id);
+        window.clearTimeout(copyTimer.current);
+        copyTimer.current = window.setTimeout(() => {
+          setCopiedId((cur) => (cur === p.id ? null : cur));
+        }, 1100);
+      },
+      () => {
+        /* clipboard blocked — still focused */
+      },
+    );
+  }
+
+  const emptyFilter =
+    filter === "young"
+      ? "no pair younger than an hour."
+      : filter === "movers"
+        ? "no pair moved 20% this hour."
+        : "nothing on this filter.";
 
   return (
     <div className="app">
       <header className="top">
         <div className="brand">
-          <div className="wordmark">SOLBOTS</div>
+          <div className="brand-text">
+            <div className="wordmark">SOLBOTS</div>
+            <div className="sub">paper desk</div>
+          </div>
           <div className={`live${state === "live" ? "" : " dim"}`}>
             <span className="dot" />
             {state === "live" ? "LIVE" : state === "limited" ? "WAIT" : "IDLE"}
@@ -127,12 +205,47 @@ export function App() {
           </div>
         </div>
         <div className="meta">
+          <span>
+            {pairs.length} {pairs.length === 1 ? "pair" : "pairs"}
+          </span>
           <span>{lastPoll ? `poll ${clock(lastPoll)}` : "polling"}</span>
           <span className="paper">PAPER</span>
         </div>
       </header>
 
       <section className="tape">
+        <div className="desk-bar">
+          <div className="chips" role="tablist" aria-label="filter">
+            <button
+              className={`chip${filter === "all" ? " on" : ""}`}
+              onClick={() => setFilter("all")}
+            >
+              ALL<span className="n">{counts.all}</span>
+            </button>
+            <button
+              className={`chip${filter === "young" ? " on" : ""}`}
+              onClick={() => setFilter("young")}
+            >
+              YOUNG (&lt;1h)<span className="n">{counts.young}</span>
+            </button>
+            <button
+              className={`chip${filter === "movers" ? " on" : ""}`}
+              onClick={() => setFilter("movers")}
+            >
+              MOVERS (|1h| &gt;= 20%)<span className="n">{counts.movers}</span>
+            </button>
+          </div>
+          <span className="match">{visible.length} match</span>
+          <div className="sort" aria-label="sort">
+            <button className={sort === "age" ? "on" : ""} onClick={() => setSort("age")}>
+              AGE
+            </button>
+            <button className={sort === "vol" ? "on" : ""} onClick={() => setSort("vol")}>
+              VOL
+            </button>
+          </div>
+        </div>
+
         <div className="focus">
           {focused ? (
             <>
@@ -164,6 +277,9 @@ export function App() {
                   </span>
                 </div>
               </div>
+              {consensus >= 3 ? (
+                <div className="consensus">{consensus} bots on this print</div>
+              ) : null}
               <div className="bot-grid">
                 {focusLines.map((line) => (
                   <div key={line.bot} className={`bot-line ${line.bot}`}>
@@ -174,7 +290,7 @@ export function App() {
               </div>
             </>
           ) : (
-            <p className="empty-focus">{note || MESSAGES.empty}</p>
+            <p className="empty-focus">{note || (pairs.length ? emptyFilter : MESSAGES.empty)}</p>
           )}
         </div>
 
@@ -192,22 +308,26 @@ export function App() {
               <strong>{state === "live" ? "loading tape" : state}</strong>
               <div>{note || "reading the public solana tape…"}</div>
             </div>
+          ) : visible.length === 0 ? (
+            <div className="banner">
+              <strong>no match</strong>
+              <div>{emptyFilter}</div>
+            </div>
           ) : (
-            pairs.map((p) => {
+            visible.map((p) => {
               const on = focused?.id === p.id;
+              const heat = rowHasHeat(p, now);
               return (
                 <button
                   key={p.id}
-                  className={`row${on ? " on" : ""}${fresh.has(p.id) ? " fresh" : ""}`}
-                  onClick={() => {
-                    focusRef.current = p.id;
-                    setFocusId(p.id);
-                  }}
+                  className={`row${on ? " on" : ""}${fresh.has(p.id) ? " fresh" : ""}${heat ? " heat" : ""}`}
+                  onClick={() => pickPair(p)}
                 >
                   <span className="sym">
                     <b>
                       {p.symbol}
                       <span className="muted"> / {p.quoteSymbol}</span>
+                      {copiedId === p.id ? <span className="copied">copied</span> : null}
                     </b>
                     <span>{p.name}</span>
                   </span>

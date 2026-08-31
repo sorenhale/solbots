@@ -214,3 +214,29 @@ export function statusFor(id: BotId, pairs: Pair[], now: number): BotStatus {
   }
   return pairs.some((p) => Math.abs(p.change.h1) >= 12) ? "marking" : "watching";
 }
+
+const BOT_IDS: BotId[] = ["nyx", "rook", "vesper", "mira"];
+const LOUD: ReadonlySet<BotStatus> = new Set(["alert", "hot", "marking", "scanning"]);
+
+export function botsOnPrint(p: Pair, now: number): number {
+  return BOT_IDS.filter((id) => LOUD.has(statusFor(id, [p], now))).length;
+}
+
+function nyxSaysYoungOrNew(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    t.includes("young") ||
+    t.includes("new to the desk") ||
+    t.includes("just appeared") ||
+    t.includes("just hit the desk") ||
+    t.includes("first time")
+  );
+}
+
+export function rowHasHeat(p: Pair, now: number): boolean {
+  if (statusFor("rook", [p], now) === "alert") return true;
+  const lines = linesFor(p, now);
+  const nyx = lines.find((l) => l.bot === "nyx")?.text ?? "";
+  const mira = lines.find((l) => l.bot === "mira")?.text ?? "";
+  return mira.toLowerCase().includes("early") && nyxSaysYoungOrNew(nyx);
+}

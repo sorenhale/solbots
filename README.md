@@ -4,6 +4,8 @@ A small paper desk that reads the public Solana tape.
 
 Four bots sit on the same events and each write one short line. Nyx watches new pairs. Rook looks at risk. Vesper reads volume. Mira marks timing. Nothing here trades. Nothing here claims a dollar made.
 
+Filter the tape to young pairs or hour movers, sort by age or volume, click a row to copy the symbol.
+
 Desktop-first. 1440 and up.
 
 ## Run it
@@ -22,7 +24,7 @@ npm run build
 npm run preview
 ```
 
-Static files land in `dist/`.
+Static files land in `dist/`. GitHub Pages can serve the copy in `docs/`.
 
 ## GitHub Pages
 
@@ -30,7 +32,7 @@ The build uses the base path `/solbots/`.
 
 1. `npm run build`
 2. Publish the `dist/` folder as a GitHub Pages site for a repo named `solbots` (or any project whose Pages URL ends in `/solbots/`).
-3. In the repo: Settings → Pages → deploy from GitHub Actions or from a `gh-pages` branch that contains that build.
+3. In the repo: Settings → Pages → deploy from GitHub Actions or from a `gh-pages` branch that contains that build. You can also serve the `docs/` folder.
 
 The site calls the public DexScreener HTTP API from the browser. No keys. CORS is already open, so you can ignore `worker/cors.js` unless a host later blocks the feed.
 
